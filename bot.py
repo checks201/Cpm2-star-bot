@@ -7,14 +7,14 @@ from telebot.types import LabeledPrice, PreCheckoutQuery
 
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "Bot Online", 200
-
 # Hardcoded directly so Render never misses it
 API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:srtlover534@gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres")
 bot = telebot.TeleBot(API_TOKEN)
+
+@app.route('/')
+def home():
+    return "Bot Online", 200
 
 def get_db_connection():
     return pg8000.connect(dsn=DATABASE_URL)
@@ -117,10 +117,9 @@ def got_payment(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ Delivery issue, contact support. Details: {str(e)}")
 
-def run_bot():
-    bot.infinity_polling(skip_pending=True)
+# This starts the bot loop in its own independent sandbox thread immediately when the script executes
+threading.Thread(target=bot.infinity_polling, kwargs={'skip_pending': True}, daemon=True).start()
 
 if __name__ == '__main__':
-    t = threading.Thread(target=run_bot)
-    t.start()
+    # Main process stays alive exclusively for Render's web traffic
     app.run(host='0.0.0.0', port=8080)
