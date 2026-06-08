@@ -1,22 +1,17 @@
 import os
-import threading
 import telebot
 import psycopg2
-from flask import Flask
-from telebot.types import LabeledPrice, PreCheckoutQuery
+from flask import Flask, request
 
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "Bot Online", 200
-
 API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
 DATABASE_URL = "postgresql://postgres:srtlover534@gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres"
+RENDER_URL = "https://cpm2-shop-bot.onrender.com"
+
 bot = telebot.TeleBot(API_TOKEN)
 
 def get_db_connection():
-    # Native connection that handles the @ symbol and email in passwords perfectly
     return psycopg2.connect(DATABASE_URL)
 
 def get_available_account(target_price):
@@ -39,6 +34,21 @@ def mark_as_sold(account_id):
     cursor.close()
     conn.close()
 
+# Flask Webhook Endpoints
+@app.route('/' + API_TOKEN, methods=['POST'])
+def getMessage():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
+
+@app.route('/')
+def webhook_setup():
+    bot.remove_webhook()
+    bot.set_webhook(url=RENDER_URL + '/' + API_TOKEN)
+    return "Zenith Storefront Webhook Successfully Synced", 200
+
+# Telegram Bot Core Handlers
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(message, "👋 Yo! Zenith Garage store bot connection test successful, bro!\n\nUse `/buy_budget` or `/buy_premium` to check live stocks.")
@@ -64,7 +74,7 @@ def handle_purchase(message, price, title):
             bot.reply_to(message, f"❌ Out of stock for the {title} tier right now, bro!")
             return
 
-        prices = [LabeledPrice(label=title, amount=price)]
+        prices = [telebot.types.LabeledPrice(label=title, amount=price)]
         bot.send_invoice(
             chat_id=message.chat.id,
             title=title,
@@ -79,7 +89,7 @@ def handle_purchase(message, price, title):
         bot.reply_to(message, f"⚠️ System Error: {str(e)}")
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
-def checkout_validation(pre_checkout_query: PreCheckoutQuery):
+def checkout_validation(pre_checkout_query: telebot.types.PreCheckoutQuery):
     try:
         payload = pre_checkout_query.invoice_payload
         account_id = int(payload.split("_")[1])
@@ -116,8 +126,6 @@ def got_payment(message):
             mark_as_sold(account_id)
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ Delivery issue, contact support. Details: {str(e)}")
-
-threading.Thread(target=bot.infinity_polling, kwargs={'skip_pending': True, 'timeout': 20, 'long_polling_timeout': 5}, daemon=True).start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
