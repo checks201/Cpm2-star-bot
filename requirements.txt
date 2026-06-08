@@ -1,5 +1,4 @@
 pyTelegramBotAPI
-pg8000
+psycopg2-binary
 Flask
 gunicorn
-
