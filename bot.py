@@ -11,13 +11,12 @@ app = Flask(__name__)
 def home():
     return "Bot Online", 200
 
-# Fallback token directly injected to ensure it authenticates perfectly
-API_TOKEN = os.getenv("TELEGRAM_TOKEN", "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo")
+# Hardcoded directly so Render never misses it
+API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:srtlover534@gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres")
 bot = telebot.TeleBot(API_TOKEN)
 
 def get_db_connection():
-    # pg8000 requires clean credential strings or direct DSN parameters
     return pg8000.connect(dsn=DATABASE_URL)
 
 def get_available_account(target_price):
@@ -59,22 +58,25 @@ def buy_premium(message):
         bot.reply_to(message, f"⚠️ Database connection error: {str(e)}")
 
 def handle_purchase(message, price, title):
-    account = get_available_account(price)
-    if not account:
-        bot.reply_to(message, f"❌ Out of stock for the {title} tier right now, bro!")
-        return
+    try:
+        account = get_available_account(price)
+        if not account:
+            bot.reply_to(message, f"❌ Out of stock for the {title} tier right now, bro!")
+            return
 
-    prices = [LabeledPrice(label=title, amount=price)]
-    bot.send_invoice(
-        chat_id=message.chat.id,
-        title=title,
-        description="Automatic instant delivery via Telegram Stars.",
-        invoice_payload=f"id_{account[0]}_price_{price}",
-        provider_token="", 
-        currency="XTR",
-        prices=prices,
-        start_parameter="cpm2-store"
-    )
+        prices = [LabeledPrice(label=title, amount=price)]
+        bot.send_invoice(
+            chat_id=message.chat.id,
+            title=title,
+            description="Automatic instant delivery via Telegram Stars.",
+            invoice_payload=f"id_{account[0]}_price_{price}",
+            provider_token="", 
+            currency="XTR",
+            prices=prices,
+            start_parameter="cpm2-store"
+        )
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ System Error: {str(e)}")
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def checkout_validation(pre_checkout_query: PreCheckoutQuery):
