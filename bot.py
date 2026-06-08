@@ -11,12 +11,13 @@ app = Flask(__name__)
 def home():
     return "Bot Online", 200
 
+# Fallback token directly injected to ensure it authenticates perfectly
 API_TOKEN = os.getenv("TELEGRAM_TOKEN", "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo")
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:srtlover534@gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres")
 bot = telebot.TeleBot(API_TOKEN)
 
 def get_db_connection():
-    # pg8000 parses standard connection strings directly
+    # pg8000 requires clean credential strings or direct DSN parameters
     return pg8000.connect(dsn=DATABASE_URL)
 
 def get_available_account(target_price):
@@ -39,13 +40,23 @@ def mark_as_sold(account_id):
     cursor.close()
     conn.close()
 
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "👋 Yo! Zenith Garage store bot connection test successful, bro!\n\nUse `/buy_budget` or `/buy_premium` to check live stocks.")
+
 @bot.message_handler(commands=['buy_budget'])
 def buy_budget(message):
-    handle_purchase(message, 500, "CPM2 Budget Account")
+    try:
+        handle_purchase(message, 500, "CPM2 Budget Account")
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ Database connection error: {str(e)}")
 
 @bot.message_handler(commands=['buy_premium'])
 def buy_premium(message):
-    handle_purchase(message, 1000, "CPM2 Premium Account")
+    try:
+        handle_purchase(message, 1000, "CPM2 Premium Account")
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ Database connection error: {str(e)}")
 
 def handle_purchase(message, price, title):
     account = get_available_account(price)
@@ -67,39 +78,45 @@ def handle_purchase(message, price, title):
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def checkout_validation(pre_checkout_query: PreCheckoutQuery):
-    payload = pre_checkout_query.invoice_payload
-    account_id = int(payload.split("_")[1])
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT status FROM cpm2_inventory WHERE id = %s;", (account_id,))
-    result = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    
-    if result and result[0].strip().upper() == 'AVAILABLE':
-        bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
-    else:
-        bot.answer_pre_checkout_query(pre_checkout_query.id, ok=False, error_message="Account sold out right as you clicked!")
+    try:
+        payload = pre_checkout_query.invoice_payload
+        account_id = int(payload.split("_")[1])
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT status FROM cpm2_inventory WHERE id = %s;", (account_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if result and result[0].strip().upper() == 'AVAILABLE':
+            bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+        else:
+            bot.answer_pre_checkout_query(pre_checkout_query.id, ok=False, error_message="Account sold out right as you clicked!")
+    except Exception:
+        bot.answer_pre_checkout_query(pre_checkout_query.id, ok=False, error_message="Database checking issue.")
 
 @bot.message_handler(content_types=['successful_payment'])
 def got_payment(message):
-    payload = message.successful_payment.invoice_payload
-    account_id = int(payload.split("_")[1])
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT details FROM cpm2_inventory WHERE id = %s;", (account_id,))
-    result = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    
-    if result:
-        bot.send_message(message.chat.id, f"⚡ **Payment Confirmed!** Here are your CPM2 credentials:\n\n`{result[0]}`")
-        mark_as_sold(account_id)
+    try:
+        payload = message.successful_payment.invoice_payload
+        account_id = int(payload.split("_")[1])
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT details FROM cpm2_inventory WHERE id = %s;", (account_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if result:
+            bot.send_message(message.chat.id, f"⚡ **Payment Confirmed!** Here are your CPM2 credentials:\n\n`{result[0]}`")
+            mark_as_sold(account_id)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ Delivery issue, contact support. Details: {str(e)}")
 
 def run_bot():
-    bot.infinity_polling()
+    bot.infinity_polling(skip_pending=True)
 
 if __name__ == '__main__':
     t = threading.Thread(target=run_bot)
