@@ -1,8 +1,7 @@
 import os
 import threading
 import telebot
-import pg8000
-from urllib.parse import urlparse
+import pg8000.dbapi
 from flask import Flask
 from telebot.types import LabeledPrice, PreCheckoutQuery
 
@@ -12,28 +11,14 @@ app = Flask(__name__)
 def home():
     return "Bot Online", 200
 
+# Hardcoded directly so Render never misses it
 API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
 DATABASE_URL = "postgresql://postgres:srtlover534@gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres"
 bot = telebot.TeleBot(API_TOKEN)
 
 def get_db_connection():
-    # Safely unpack the complex database string to handle the email address formatting cleanly
-    url = urlparse(DATABASE_URL)
-    username = url.username
-    # Splits out the user if the connection string formatting gets mixed up
-    password = url.password if url.password else "srtlover534@gmail.com"
-    if "@" in url.netloc and not url.password:
-        auth = url.netloc.split("@")[0]
-        if ":" in auth:
-            username, password = auth.split(":", 1)
-
-    return pg8000.connect(
-        user=username,
-        password=password,
-        host="db.cqpgjiqyvwpnfdtbsrts.supabase.co",
-        port=5432,
-        database="postgres"
-    )
+    # Built-in native URL parser that handles complex strings perfectly
+    return pg8000.dbapi.from_url(DATABASE_URL)
 
 def get_available_account(target_price):
     conn = get_db_connection()
