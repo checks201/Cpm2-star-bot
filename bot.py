@@ -1,7 +1,7 @@
 import os
 import threading
 import telebot
-import psycopg2
+import pg8000
 from flask import Flask
 from telebot.types import LabeledPrice, PreCheckoutQuery
 
@@ -16,7 +16,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 bot = telebot.TeleBot(API_TOKEN)
 
 def get_db_connection():
-    return psycopg2.connect(DATABASE_URL)
+    # pg8000 parses standard connection strings directly
+    return pg8000.connect(dsn=DATABASE_URL)
 
 def get_available_account(target_price):
     conn = get_db_connection()
