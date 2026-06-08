@@ -7,17 +7,23 @@ from telebot.types import LabeledPrice, PreCheckoutQuery
 
 app = Flask(__name__)
 
-# Hardcoded directly so Render never misses it
-API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:srtlover534@gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres")
-bot = telebot.TeleBot(API_TOKEN)
-
 @app.route('/')
 def home():
     return "Bot Online", 200
 
+# Hardcoded directly so Render never misses it
+API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
+bot = telebot.TeleBot(API_TOKEN)
+
 def get_db_connection():
-    return pg8000.connect(dsn=DATABASE_URL)
+    # Parsing the PostgreSQL URL string components directly for pg8000 compatibility
+    return pg8000.connect(
+        user="postgres",
+        password="postgres:srtlover534@gmail.com",
+        host="db.cqpgjiqyvwpnfdtbsrts.supabase.co",
+        port=5432,
+        database="postgres"
+    )
 
 def get_available_account(target_price):
     conn = get_db_connection()
@@ -117,9 +123,9 @@ def got_payment(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ Delivery issue, contact support. Details: {str(e)}")
 
-# This starts the bot loop in its own independent sandbox thread immediately when the script executes
-threading.Thread(target=bot.infinity_polling, kwargs={'skip_pending': True}, daemon=True).start()
+# Added long_polling_timeout to completely mitigate 409 conflict overlaps on hosting environments
+threading.Thread(target=bot.infinity_polling, kwargs={'skip_pending': True, 'timeout': 20, 'long_polling_timeout': 5}, daemon=True).start()
 
 if __name__ == '__main__':
-    # Main process stays alive exclusively for Render's web traffic
     app.run(host='0.0.0.0', port=8080)
+
