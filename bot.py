@@ -1,7 +1,7 @@
 import os
 import threading
 import telebot
-import pg8000.dbapi
+import psycopg2
 from flask import Flask
 from telebot.types import LabeledPrice, PreCheckoutQuery
 
@@ -11,14 +11,13 @@ app = Flask(__name__)
 def home():
     return "Bot Online", 200
 
-# Hardcoded directly so Render never misses it
 API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
 DATABASE_URL = "postgresql://postgres:srtlover534@gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres"
 bot = telebot.TeleBot(API_TOKEN)
 
 def get_db_connection():
-    # Built-in native URL parser that handles complex strings perfectly
-    return pg8000.dbapi.from_url(DATABASE_URL)
+    # Native connection that handles the @ symbol and email in passwords perfectly
+    return psycopg2.connect(DATABASE_URL)
 
 def get_available_account(target_price):
     conn = get_db_connection()
