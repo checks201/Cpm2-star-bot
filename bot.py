@@ -5,10 +5,9 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-# Configured with your live Render URL and explicit token
 API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
 DATABASE_URL = "postgresql://postgres:srtlover534%40gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres"
-RENDER_URL = "https://onrender.com"  # FIXED: Matched to your actual Render URL
+RENDER_URL = "https://onrender.com"
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -45,9 +44,12 @@ def getMessage():
 
 @app.route('/')
 def webhook_setup():
-    bot.remove_webhook()
-    bot.set_webhook(url=RENDER_URL + '/' + API_TOKEN)
-    return "Zenith Storefront Webhook Successfully Synced", 200
+    try:
+        # Avoid removing webhook every single execution to prevent 429 rate limits
+        bot.set_webhook(url=RENDER_URL + '/' + API_TOKEN, drop_pending_updates=True)
+        return "Zenith Storefront Webhook Successfully Synced", 200
+    except Exception as e:
+        return f"Webhook connection error: {str(e)}", 500
 
 # Telegram Bot Core Handlers
 @bot.message_handler(commands=['start'])
@@ -80,7 +82,7 @@ def handle_purchase(message, price, title):
             chat_id=message.chat.id,
             title=title,
             description="Automatic instant delivery via Telegram Stars.",
-            invoice_payload=f"id_{account[0]}_price_{price}", # FIXED: Extracting index correctly
+            invoice_payload=f"id_{account[0]}_price_{price}", # FIXED: Pull structural ID integer cleanly
             provider_token="", 
             currency="XTR",
             prices=prices,
@@ -93,7 +95,7 @@ def handle_purchase(message, price, title):
 def checkout_validation(pre_checkout_query: telebot.types.PreCheckoutQuery):
     try:
         payload = pre_checkout_query.invoice_payload
-        account_id = int(payload.split("_")[1])  # FIXED: Extracting index correctly
+        account_id = int(payload.split("_")[1])  # FIXED: Target explicit positional index text fragment
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -113,7 +115,7 @@ def checkout_validation(pre_checkout_query: telebot.types.PreCheckoutQuery):
 def got_payment(message):
     try:
         payload = message.successful_payment.invoice_payload
-        account_id = int(payload.split("_")[1])  # FIXED: Extracting index correctly
+        account_id = int(payload.split("_")[1])  # FIXED: Target explicit positional index text fragment
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -130,3 +132,4 @@ def got_payment(message):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
+
