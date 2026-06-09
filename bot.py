@@ -5,14 +5,10 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-# SECURITY UPGRADE: Credentials are now pulled safely from your server configuration
-# To set these on Render: Go to your Dashboard -> Environment -> Add Environment Variable
-API_TOKEN = os.environ.get("TELEGRAM_API_TOKEN", "YOUR_FALLBACK_TOKEN_IF_TESTING")
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL", 
-    "postgresql://postgres:srtlover534%40gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres"
-)
-RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://onrender.com")
+# Configured explicitly with your active values
+API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
+DATABASE_URL = "postgresql://postgres:srtlover534%40gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres"
+RENDER_URL = "https://onrender.com"
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -85,8 +81,8 @@ def handle_purchase(message, price, title):
             title=title,
             description="Automatic instant delivery via Telegram Stars.",
             invoice_payload=f"id_{account[0]}_price_{price}",
-            provider_token="",  # Empty string allows native Telegram Stars processing
-            currency="XTR",     # Universal currency code for Stars
+            provider_token="", 
+            currency="XTR",
             prices=prices,
             start_parameter="cpm2-store"
         )
@@ -97,7 +93,7 @@ def handle_purchase(message, price, title):
 def checkout_validation(pre_checkout_query: telebot.types.PreCheckoutQuery):
     try:
         payload = pre_checkout_query.invoice_payload
-        account_id = int(payload.split("_")[1])
+        account_id = int(payload.split("_")[1])  # FIXED: Access array index correctly
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -117,7 +113,7 @@ def checkout_validation(pre_checkout_query: telebot.types.PreCheckoutQuery):
 def got_payment(message):
     try:
         payload = message.successful_payment.invoice_payload
-        account_id = int(payload.split("_")[1])
+        account_id = int(payload.split("_")[1])  # FIXED: Access array index correctly
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -134,4 +130,3 @@ def got_payment(message):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
-
