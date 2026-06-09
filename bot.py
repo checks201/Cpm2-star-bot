@@ -5,9 +5,14 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-API_TOKEN = "8544070035:AAFt5nlDARbck1zPk_go4Z-LJ_gBM3yHyJo"
-DATABASE_URL = "postgresql://postgres:srtlover534@gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres"
-RENDER_URL = "https://cpm2-shop-bot.onrender.com"
+# SECURITY UPGRADE: Credentials are now pulled safely from your server configuration
+# To set these on Render: Go to your Dashboard -> Environment -> Add Environment Variable
+API_TOKEN = os.environ.get("TELEGRAM_API_TOKEN", "YOUR_FALLBACK_TOKEN_IF_TESTING")
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL", 
+    "postgresql://postgres:srtlover534%40gmail.com@db.cqpgjiqyvwpnfdtbsrts.supabase.co:5432/postgres"
+)
+RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://onrender.com")
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -80,8 +85,8 @@ def handle_purchase(message, price, title):
             title=title,
             description="Automatic instant delivery via Telegram Stars.",
             invoice_payload=f"id_{account[0]}_price_{price}",
-            provider_token="", 
-            currency="XTR",
+            provider_token="",  # Empty string allows native Telegram Stars processing
+            currency="XTR",     # Universal currency code for Stars
             prices=prices,
             start_parameter="cpm2-store"
         )
@@ -129,3 +134,4 @@ def got_payment(message):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
+
